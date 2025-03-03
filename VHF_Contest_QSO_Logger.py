@@ -164,7 +164,6 @@ Long_Grid_Pitch = 0
 wsjt_1_logging_enabled = False
 wsjt_2_logging_enabled = False
 Number_Dupes = 0
-Latest_QSO_Dist = 0
 
 class NextExchTxMap:
     def __init__(self):
@@ -403,10 +402,19 @@ def validate_callsign(event):
     CallSign_Entry_Val.set(re.sub('[^A-Z0-9/]', '', CallSign_Entry_Val.get()))  # Filters out characters other than digits, letters and '/'
     dupe_check()
 
+def update_distance():
+    distance = "N/A"
+    locator = GridSquare_Entry_Val.get()
+    if (4 <= len(locator) <= 6):
+        distance = str(Dist_Between_2_GridSquares(Own_Gridsquare, locator.ljust(6, "L")))
+
+    Dist_Text_Label.config(text = f"Distance: {distance} km")
+
 #Converts the grid square to uppercase and check for duplicates on-the-fly. Also returns whether the 2-letter/2digits(/2-letter) grid square format is met
 def validate_gridsquare(event):
     global Contest_Number
     GridSquare_Entry_Val.set(GridSquare_Entry_Val.get().upper())
+    update_distance()
     if ((len(GridSquare_Entry_Val.get()) > 4) and not(CONTEST_DIST[Contest_Number])): GridSquare_Entry_Val.set(GridSquare_Entry_Val.get()[:-1])
     elif (len(GridSquare_Entry_Val.get()) > 6): GridSquare_Entry_Val.set(GridSquare_Entry_Val.get()[:-1])
     GridSquare_Breakdown_List = list(GridSquare_Entry_Val.get())
@@ -521,13 +529,6 @@ def save_qso_button_clicked():
                        + GridSquare_Entry_Val.get().ljust(7, ' ')
                        + ExchTx_Entry_Val.get().ljust(5, ' ')
                        + ExchRx_Entry_Val.get().ljust(5, ' '))
-    if (len(GridSquare_Entry_Val.get()) == 4):   # 4-character grid square
-        stuffed_gridsquare = GridSquare_Entry_Val.get() + 'LL'  # Assumes the center of the grid
-        Latest_QSO_Dist = Dist_Between_2_GridSquares(Own_Gridsquare,stuffed_gridsquare)
-        Dist_Text_Label.config(text = 'Latest QSO Distance (Km): ~' + str(Latest_QSO_Dist))
-    else:
-        Latest_QSO_Dist = Dist_Between_2_GridSquares(Own_Gridsquare,GridSquare_Entry_Val.get())
-        Dist_Text_Label.config(text = 'Latest QSO Distance (Km): ' + str(Latest_QSO_Dist))
     for i in range(0,QSO_Listbox.size()):
         if (i%2==0): QSO_Listbox.itemconfigure(i, bg = "lightcyan2")  # even lines
         else: QSO_Listbox.itemconfigure(i, bg = "lightcyan3")   # Odd lines
@@ -726,7 +727,6 @@ def stats_button_clicked():
     global Stats_Window_Geometry_Y
     global Stats_Window_Open
     global Contest_Number
-    global Latest_QSO_Dist
 
     if not Stats_Window_Open:  # Otherwise more than one instance of that wndow will be created
         def window_position_save(event):
