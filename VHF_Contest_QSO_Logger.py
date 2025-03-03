@@ -84,6 +84,8 @@ BAND_POS = 2
 MODE_POS = 3
 CALLSIGN_POS = 4
 GRIDSQUARE_POS = 5
+EXCH_TX_POS = 6
+EXCH_RX_POS = 7
 X1_MAP_HEIGHT = 2880
 X1_MAP_WIDTH = 5760
 UDP_IP = ''
@@ -98,7 +100,8 @@ CONTESTS = ['Please Select Contest',                       # 0
             'NA VHF/UHF Sprint',                           # 3
             'NA Microwave Sprint (6-char. Grid Sq.)',      # 4
             'ARRL 222 MHz+ Contest (6-char. Grid Sq.)',    # 5
-            'ARRL 10 GHz+ Contest (6-char. Grid Sq.)']     # 6
+            'ARRL 10 GHz+ Contest (6-char. Grid Sq.)',     # 6
+            'URH Puskás Kupa (6-char. Grid Sq.)']          # 7
 
 QSO_POINTS_TBL = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],               # 0
                  [1, 1, 1, 2, 2, 4, 4, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8],                # 1
@@ -106,7 +109,8 @@ QSO_POINTS_TBL = [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],       
                  [1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],                # 3
                  [0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],                # 4
                  [0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],                # 5
-                 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 100, 100, 100, 100, 100, 100, 0]]  # 6
+                 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 100, 100, 100, 100, 100, 100, 0],  # 6
+                 [0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]                # 7
 
 # Band Factor only applies to 10 GHz and Up contest
 BAND_FACTOR =    [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],           # 0
@@ -115,7 +119,8 @@ BAND_FACTOR =    [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],       
                   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],           # 3
                   [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],           # 4
                   [0, 0, 0, 2, 1, 4, 2, 6, 10, 10, 6, 20, 20, 20, 20, 20, 20, 0],   # 5
-                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 5, 5, 0]]           # 6
+                  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 5, 5, 0],           # 6
+                  [0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]           # 7
 
 # Distance factor: Contests with "True" will take the distance into account for score calculation
 CONTEST_DIST =  [False,   # 0
@@ -124,7 +129,8 @@ CONTEST_DIST =  [False,   # 0
                  False,   # 3
                  True,    # 4                
                  True,    # 5         
-                 True]    # 6
+                 True,    # 6
+                 True]    # 7
 
 # G_L_O_B_A_L  V_A_R_I_A_B_L_E_S
 
@@ -157,6 +163,7 @@ wsjt_1_logging_enabled = False
 wsjt_2_logging_enabled = False
 Number_Dupes = 0
 Latest_QSO_Dist = 0
+Next_Exchanges_For_Bands = [1] * len(CONTEST_BANDS)
 
 # M_A_I_N__C_O_D_E
 
@@ -233,9 +240,18 @@ def dupe_check():
                 QSO_Listbox.selection_clear(0, END)
     QSO_Entry_Window.update()
 
+def update_exch_tx_entry():
+    Band = Band_Combo_Val.get()
+    if Band in CONTEST_BANDS:
+        Band_Index = CONTEST_BANDS.index(Band)
+        ExchTx_Entry_Val.set(str(Next_Exchanges_For_Bands[Band_Index]).rjust(3, "0"))
+    else:
+        ExchTx_Entry_Val.set("")
+
 # This function is required because the ComboBox sends an event as parameter, unlike other widgets
 def combobox_dupe_check(event):
     dupe_check()
+    update_exch_tx_entry()
 
 # This function scans for duplicate QSOs and colors them in red font in the QSO listbox.
 def qso_listbox_dupe_check():
@@ -417,17 +433,12 @@ def log_file_save():
         if os.path.exists(Contest_File_Name): copy(Contest_File_Name,Contest_File_Name + ".bak") # copies original log to a backup file before any modification.
     except:
         pass     # Catches a file copy error.
-    file = open(Contest_File_Name,'w') # Open text file for writing
-    for i in range(0,QSO_Listbox.size()):    
-        QSO_Line = QSO_Listbox.get(i).split(" ")
-        while "" in QSO_Line: QSO_Line.remove("") # Removes empty strings from list
-        file.write(QSO_Line[DATE_POS] + ","
-                 + QSO_Line[TIME_POS] + ","
-                 + QSO_Line[BAND_POS] + ","
-                 + QSO_Line[MODE_POS] + ","
-                 + QSO_Line[CALLSIGN_POS] + ","
-                 + QSO_Line[GRIDSQUARE_POS] + "\n")
-    file.close()
+    with open(Contest_File_Name, 'w') as f:  # Open text file for writing
+        for i in range(0,QSO_Listbox.size()):
+            QSO_Line = QSO_Listbox.get(i).strip().split(" ")
+            while "" in QSO_Line: QSO_Line.remove("") # Removes empty strings from list
+            f.write(",".join(QSO_Line) + "\n")
+
     if (os.path.exists(Contest_File_Name.split(".VHFlog")[0])):
         os.remove(Contest_File_Name.split(".VHFlog")[0]) # Required to delete extraneous file created on open (...,'w'): It is a Python bug.
     update_qso_list()
@@ -437,21 +448,27 @@ def log_file_save():
 def log_file_load():
     global Contest_File_Name
     global QSO_Listbox
+    global Next_Exchanges_For_Bands
     QSO_Listbox.delete (0 , QSO_Listbox.size()-1)  # First clear all old QSOs in the QSO listbox
+    New_Next_Exchanges_For_Bands = [1] * len(CONTEST_BANDS)
     try:
-        file = open(Contest_File_Name,'r') # Open text file for reading
-        OneLine = file.readline()
-        while OneLine:
-            QSO_Line_List = OneLine.split(",")
-            QSO_Listbox.insert(END,QSO_Line_List[DATE_POS].ljust(12, ' ') + QSO_Line_List[TIME_POS].ljust(6, ' ') + QSO_Line_List[BAND_POS].ljust(6, ' ')
-                               + QSO_Line_List[MODE_POS].ljust(4, ' ') + QSO_Line_List[CALLSIGN_POS].ljust(10, ' ') + QSO_Line_List[GRIDSQUARE_POS][:-1].ljust(6, ' '))
-            OneLine = file.readline()
+        with open(Contest_File_Name, 'r') as f:  # Open text file for reading
+            for OneLine in f:
+                QSO_Line_List = OneLine.strip().split(",")
+                Band_Index = CONTEST_BANDS.index(QSO_Line_List[BAND_POS])
+                ExchTx = int(QSO_Line_List[EXCH_TX_POS])
+                New_Next_Exchanges_For_Bands[Band_Index] = max(New_Next_Exchanges_For_Bands[Band_Index], ExchTx + 1)
+                QSO_Listbox.insert(END,QSO_Line_List[DATE_POS].ljust(12, ' ') + QSO_Line_List[TIME_POS].ljust(6, ' ') + QSO_Line_List[BAND_POS].ljust(6, ' ')
+                                   + QSO_Line_List[MODE_POS].ljust(4, ' ') + QSO_Line_List[CALLSIGN_POS].ljust(10, ' ') + QSO_Line_List[GRIDSQUARE_POS].ljust(7, ' ')
+                                   + QSO_Line_List[EXCH_TX_POS].ljust(5, ' ') + QSO_Line_List[EXCH_RX_POS].ljust(5, ' '))
         for i in range(0,QSO_Listbox.size()): # Color the QSO backgrounds in the listbox with alternate colors
             if (i%2==0): QSO_Listbox.itemconfigure(i, bg = "lightcyan2") 
             else: QSO_Listbox.itemconfigure(i, bg = "lightcyan3")
-        file.close()
+
         No_Log_Loaded_Label.pack_forget() # This makes the label disappear
         Update_QSO_List_Banner()
+        Next_Exchanges_For_Bands = New_Next_Exchanges_For_Bands
+        update_exch_tx_entry()
     except IOError:
         No_Log_Loaded_Label.pack(expand=True, fill=None) # This makes the label appear
         QSO_List_Window.title("VCL - No Log Loaded")
@@ -487,7 +504,9 @@ def save_qso_button_clicked():
                        + Band_Combo_Val.get().ljust(6, ' ')
                        + Mode_Combo_Val.get().ljust(4, ' ')
                        + CallSign_Entry_Val.get().ljust(10, ' ')
-                       + GridSquare_Entry_Val.get().ljust(6, ' '))
+                       + GridSquare_Entry_Val.get().ljust(7, ' ')
+                       + ExchTx_Entry_Val.get().ljust(5, ' ')
+                       + ExchRx_Entry_Val.get().ljust(5, ' '))
     if (len(GridSquare_Entry_Val.get()) == 4):   # 4-character grid square
         stuffed_gridsquare = GridSquare_Entry_Val.get() + 'LL'  # Assumes the center of the grid
         Latest_QSO_Dist = Dist_Between_2_GridSquares(Own_Gridsquare,stuffed_gridsquare)
@@ -502,6 +521,11 @@ def save_qso_button_clicked():
     QSO_Listbox.selection_clear(0, END) # Deselects any remaining items
     CallSign_Entry_Val.set("")
     GridSquare_Entry_Val.set("")
+    Band_Index = CONTEST_BANDS.index(Band_Combo_Val.get())
+    ExchTx = int(ExchTx_Entry_Val.get())
+    Next_Exchanges_For_Bands[Band_Index] = max(Next_Exchanges_For_Bands[Band_Index], ExchTx + 1)
+    update_exch_tx_entry()
+    ExchRx_Entry_Val.set("")
     Date_Entry.configure(bg=Default_BG_Color, fg="gray44")
     Time_Entry.configure(bg=Default_BG_Color, fg="gray44")
     Save_QSO_Button.configure(text = "Save QSO", fg = "dark green")        
@@ -595,6 +619,7 @@ def check_and_save_qso_from_wsjt_thread():
         QSO_Listbox.selection_clear(0, END) # Deselects any remaining items
         CallSign_Entry_Val.set("")
         GridSquare_Entry_Val.set("")
+        ExchRx_Entry_Val.set("")
         Date_Entry.configure(bg=Default_BG_Color, fg="gray44")
         Time_Entry.configure(bg=Default_BG_Color, fg="gray44")
         Save_QSO_Button.configure(text = "Save QSO", fg = "dark green")        
@@ -638,6 +663,7 @@ def clear_qso_text_button_clicked():
     global Edit_QSO_Action
     CallSign_Entry_Val.set("")
     GridSquare_Entry_Val.set("")
+    ExchRx_Entry_Val.set("")
     Save_QSO_Button.configure(text = "Save QSO", fg = "dark green")        
     Date_Entry.configure(bg=Default_BG_Color, fg="gray44")
     Time_Entry.configure(bg=Default_BG_Color, fg="gray44")
@@ -848,6 +874,8 @@ def edit_qso_button_clicked():
     Mode_Combo_Val.set(QSO_Line[MODE_POS])
     CallSign_Entry_Val.set(QSO_Line[CALLSIGN_POS])
     GridSquare_Entry_Val.set(QSO_Line[GRIDSQUARE_POS])
+    ExchTx_Entry_Val.set(QSO_Line[EXCH_TX_POS])
+    ExchRx_Entry_Val.set(QSO_Line[EXCH_RX_POS])
     for i in range(0,QSO_Listbox.size()):
         if (i%2==0): QSO_Listbox.itemconfigure(i, bg = "lightcyan2") 
         else: QSO_Listbox.itemconfigure(i, bg = "lightcyan3")
@@ -886,7 +914,8 @@ def sort_qsos(field):
     for i in range(0,QSO_Listbox.size()):    
         QSO_Listbox.delete(i)
         QSO_Listbox.insert(i,QSO_List[i][DATE_POS].ljust(12, ' ') + QSO_List[i][TIME_POS].ljust(6, ' ') + QSO_List[i][BAND_POS].ljust(6, ' ')
-                        + QSO_List[i][MODE_POS].ljust(4, ' ') + QSO_List[i][CALLSIGN_POS].ljust(10, ' ') + QSO_List[i][GRIDSQUARE_POS].ljust(6, ' '))
+                        + QSO_List[i][MODE_POS].ljust(4, ' ') + QSO_List[i][CALLSIGN_POS].ljust(10, ' ') + QSO_List[i][GRIDSQUARE_POS].ljust(7, ' ')
+                        + QSO_List[i][EXCH_TX_POS].ljust(5, ' ') + QSO_List[i][EXCH_RX_POS].ljust(5, ' '))
         if (i%2==0): QSO_Listbox.itemconfigure(i, bg = "lightcyan2") 
         else: QSO_Listbox.itemconfigure(i, bg = "lightcyan3") 
     log_file_save()
@@ -901,7 +930,8 @@ def sort_qsos_by_date():
     for i in range(0,QSO_Listbox.size()):    
         QSO_Listbox.delete(i)
         QSO_Listbox.insert(i,QSO_List[i][DATE_POS].ljust(12, ' ') + QSO_List[i][TIME_POS].ljust(6, ' ') + QSO_List[i][BAND_POS].ljust(6, ' ')
-                        + QSO_List[i][MODE_POS].ljust(4, ' ') + QSO_List[i][CALLSIGN_POS].ljust(10, ' ') + QSO_List[i][GRIDSQUARE_POS].ljust(6, ' '))
+                        + QSO_List[i][MODE_POS].ljust(4, ' ') + QSO_List[i][CALLSIGN_POS].ljust(10, ' ') + QSO_List[i][GRIDSQUARE_POS].ljust(7, ' ')
+                        + QSO_List[i][EXCH_TX_POS].ljust(5, ' ') + QSO_List[i][EXCH_RX_POS].ljust(5, ' '))
         if (i%2==0): QSO_Listbox.itemconfigure(i, bg = "lightcyan2") 
         else: QSO_Listbox.itemconfigure(i, bg = "lightcyan3")
     log_file_save()
@@ -927,8 +957,8 @@ def update_datetime_and_misc():
     global Stop_DateTime_Updates
     # Update date and time in the QSO entry fields
     if not Stop_DateTime_Updates:
-        Date_Entry_Val.set(datetime.datetime.utcnow().strftime('%Y-%m-%d'))
-        Time_Entry_Val.set(datetime.datetime.utcnow().strftime('%H%M'))
+        Date_Entry_Val.set(datetime.datetime.now(datetime.UTC).strftime('%Y-%m-%d'))
+        Time_Entry_Val.set(datetime.datetime.now(datetime.UTC).strftime('%H%M'))
     # Update QSO edit and delete buttons state (disabled if no QSO is selected in list, enabled otherwise)
     if (len(QSO_Listbox.curselection()) == 0):  # Checks if a line is selected
         Erase_QSO_Button['state'] = DISABLED
@@ -981,8 +1011,8 @@ def cabrillo_file_button_clicked():
         QSO_Line = QSO_Listbox.get(i).split(" ")
         while "" in QSO_Line: QSO_Line.remove("") # Removes empty strings from list
         cabrillo_file.write("QSO: " + QSO_Line[BAND_POS] + " " + QSO_Line[MODE_POS]  + " " + QSO_Line[DATE_POS] + " "
-                            + QSO_Line[TIME_POS] + " " + Own_Callsign.upper() + " " + Own_Gridsquare.upper() + " "
-                            + QSO_Line[CALLSIGN_POS] + " "  + QSO_Line[GRIDSQUARE_POS] + "\n")
+                            + QSO_Line[TIME_POS] + " " + Own_Callsign.upper() + " " + QSO_Line[EXCH_TX_POS] + " " + Own_Gridsquare.upper() + " "
+                            + QSO_Line[CALLSIGN_POS] + " " + QSO_Line[EXCH_RX_POS] + " " + QSO_Line[GRIDSQUARE_POS] + "\n")
     cabrillo_file.write("END-OF-LOG:\n")
     cabrillo_file.close()
     showinfo("Cabrillo File Generation Complete","The Cabrillo file was saved as: \n" + cabrillo_file.name)
@@ -1199,6 +1229,8 @@ def recall_qso_in_entry(event):
         Mode_Combo_Val.set(QSO_Line[MODE_POS])
         CallSign_Entry_Val.set(QSO_Line[CALLSIGN_POS])
         GridSquare_Entry_Val.set(QSO_Line[GRIDSQUARE_POS])
+        ExchTx_Entry_Val.set(QSO_Line[EXCH_TX_POS])
+        ExchRx_Entry_Val.set(QSO_Line[EXCH_RX_POS])
 
 #Main window creation
 QSO_List_Window = Tk()
@@ -1255,6 +1287,14 @@ create_hint(Sort_By_Call_Button,"Sorts the QSOs by alphabetical order of the cal
 Sort_By_Grid_Button = Button(button_frame1, text = "↓Grid", command = lambda: sort_qsos(5), fg = "blue", font = "Verdana 8", bd = 2)
 Sort_By_Grid_Button.pack(side=LEFT,fill="x", expand=True)
 create_hint(Sort_By_Grid_Button,"Sorts the QSOs by alphabetical order of the grid square column.")
+
+Sort_By_ExchTx_Button = Button(button_frame1, text = "↓ExchTx", command = lambda: sort_qsos(5), fg = "blue", font = "Verdana 8", bd = 2)
+Sort_By_ExchTx_Button.pack(side=LEFT,fill="x", expand=True)
+create_hint(Sort_By_ExchTx_Button,"Sorts the QSOs by alphabetical order of the ExchTx column.")
+
+Sort_By_ExchRx_Button = Button(button_frame1, text = "↓ExchRx", command = lambda: sort_qsos(5), fg = "blue", font = "Verdana 8", bd = 2)
+Sort_By_ExchRx_Button.pack(side=LEFT,fill="x", expand=True)
+create_hint(Sort_By_ExchRx_Button,"Sorts the QSOs by alphabetical order of the ExchRx column.")
 
 QSO_Listbox = Listbox(QSO_List_Window, width=46, height=15, selectmode="single")  
 QSO_Listbox.pack(fill=BOTH, expand=True)
@@ -1331,13 +1371,13 @@ create_hint(Cabrillo_Button,"Produces a Cabrillo-formatted file (.vhfcab) requir
 
 QSO_Entry_Window = Toplevel(QSO_List_Window)
 QSO_Entry_Window.title("VCL - QSO Capture")     
-QSO_Entry_Window.geometry('{}x{}'.format(260,150))
+QSO_Entry_Window.geometry('{}x{}'.format(360,150))
 QSO_Entry_Window.resizable(0, 0) # Makes Log entry window size fixed
 QSO_Entry_Window.iconphoto(True, PhotoImage(file = "./images/VCL_Icon_350x350.png"))  # Only accepts .PNG files
 first_element_offset = 12
 
 # First row of widgets 
-QSO_Upper_button_frame = Frame(QSO_Entry_Window, relief=RAISED, borderwidth=0, height=100, width=100, bg = Default_BG_Color)
+QSO_Upper_button_frame = Frame(QSO_Entry_Window, relief=RAISED, borderwidth=0, height=100, width=200, bg = Default_BG_Color)
 QSO_Upper_button_frame.pack()
 
 Date_Entry_Label = Label(QSO_Upper_button_frame,text="Date", bg = Default_BG_Color)
@@ -1355,7 +1395,7 @@ create_hint(Date_Entry,"QSO date entry: Automatically filled in with the current
 Time_Entry_Label = Label(QSO_Upper_button_frame,text="Time-UTC", bg = Default_BG_Color)
 Time_Entry_Label.grid(row=0, column=1, padx=2,)  
 Time_Entry_Val = StringVar(QSO_Entry_Window)     
-Time_Entry_Val.set(datetime.datetime.utcnow().strftime('%H:%M'))          
+Time_Entry_Val.set(datetime.datetime.now(datetime.UTC).strftime('%H:%M'))
 Time_Entry = Entry(QSO_Upper_button_frame, textvariable=Time_Entry_Val, bg=Default_BG_Color)  
 Time_Entry.bind("<FocusIn>",date_time_has_focus)
 Time_Entry.bind("<KeyRelease>", validate_time)
@@ -1375,8 +1415,19 @@ Band_Combo.set("50")
 Band_Combo.grid(row=1, column=2, padx=2)    
 create_hint(Band_Combo,"Amateur frequency band used for the QSO. Actively checked for call_sign-Band-grid duplication against the QSO list.")
 
+ExchTx_Entry_Label = Label(QSO_Upper_button_frame,text="Exch Sent", bg = Default_BG_Color)
+ExchTx_Entry_Label.grid(row=0, column=3)
+ExchTx_Entry_Val = StringVar(QSO_Upper_button_frame)
+ExchTx_Entry_Val.set("")
+ExchTx_Entry = Entry(QSO_Upper_button_frame, textvariable=ExchTx_Entry_Val)
+#ExchTx_Entry.bind("<KeyRelease>", validate_gridsquare)
+ExchTx_Entry.bind("<Return>", save_qso_returnkey_pressed)
+ExchTx_Entry.configure(width=5)
+ExchTx_Entry.grid(row=1, column=3, padx=2)
+create_hint(ExchTx_Entry, "Exchange information (sequence number) that you sent to the remote station.")
+
 # Second row of widgets 
-QSO_Lower_button_frame = Frame(QSO_Entry_Window, relief=RAISED, borderwidth=0, height=100, width=100, bg = Default_BG_Color)
+QSO_Lower_button_frame = Frame(QSO_Entry_Window, relief=RAISED, borderwidth=0, height=100, width=200, bg = Default_BG_Color)
 QSO_Lower_button_frame.pack()
 
 CallSign_Entry_Label = Label(QSO_Lower_button_frame,text="Call Sign", bg = Default_BG_Color)
@@ -1411,8 +1462,19 @@ Mode_Combo.set("PH")
 Mode_Combo.grid(row=3, column=2, padx=2)    
 create_hint(Mode_Combo,"Modulation mode used for the QSO. Provided in the Cabrillo file submitted to the ARRL.")
 
+ExchRx_Entry_Label = Label(QSO_Lower_button_frame,text="Exch Rcvd", bg = Default_BG_Color)
+ExchRx_Entry_Label.grid(row=2, column=3)
+ExchRx_Entry_Val = StringVar(QSO_Lower_button_frame)
+ExchRx_Entry_Val.set("")
+ExchRx_Entry = Entry(QSO_Lower_button_frame, textvariable=ExchRx_Entry_Val)
+#ExchRx_Entry.bind("<KeyRelease>", validate_gridsquare)
+ExchRx_Entry.bind("<Return>", save_qso_returnkey_pressed)
+ExchRx_Entry.configure(width=5)
+ExchRx_Entry.grid(row=3, column=3, padx=2)
+create_hint(ExchRx_Entry, "Exchange information (sequence number) that the remote station sent you.")
+
 # Create a frame to contain the Save and Cancel buttons
-QSO_Buttons_Frame = Frame(QSO_Entry_Window, relief=RAISED, borderwidth=0, height=100, width=100, bg = Default_BG_Color)
+QSO_Buttons_Frame = Frame(QSO_Entry_Window, relief=RAISED, borderwidth=0, height=100, width=200, bg = Default_BG_Color)
 QSO_Buttons_Frame.pack()
 Save_QSO_Button = Button(QSO_Buttons_Frame, text = "Save QSO", command = save_qso_button_clicked, fg = "dark green", font = "Verdana 8", bd = 2)
 Save_QSO_Button.bind('<Return>', save_qso_returnkey_pressed)
@@ -1742,7 +1804,7 @@ Hint_Text_Box.config(state='disabled')
 try:
     file = open("./config.sav",'r') # Open config file for reading
     Contest_File_Name = file.readline()[:-1]
-    QSO_Entry_Window.geometry('{}x{}+{}+{}'.format(260,150,
+    QSO_Entry_Window.geometry('{}x{}+{}+{}'.format(360,150,
                             int(file.readline()[:-1]),
                             int(file.readline()[:-1])))
     QSO_List_Window.geometry(file.readline()[:-1])
