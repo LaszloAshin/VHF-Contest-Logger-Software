@@ -132,6 +132,8 @@ CONTEST_DIST =  [False,   # 0
                  True,    # 6
                  True]    # 7
 
+MODES = ('CW','PH','FM','RY','DG')
+
 # G_L_O_B_A_L  V_A_R_I_A_B_L_E_S
 
 Contest_File_Name = ""
@@ -163,7 +165,22 @@ wsjt_1_logging_enabled = False
 wsjt_2_logging_enabled = False
 Number_Dupes = 0
 Latest_QSO_Dist = 0
-Next_Exchanges_For_Bands = [1] * len(CONTEST_BANDS)
+
+class NextExchTxMap:
+    def __init__(self):
+        self.map = {}
+        for band in CONTEST_BANDS:
+            self.map[band] = {}
+            for mode in MODES:
+                self.map[band][mode] = 1
+
+    def get(self, band, mode):
+        return self.map[band][mode]
+
+    def put(self, band, mode, exch_tx):
+        self.map[band][mode] = max(self.map[band][mode], exch_tx + 1)
+
+Next_Exchanges = NextExchTxMap()
 
 # M_A_I_N__C_O_D_E
 
@@ -208,6 +225,7 @@ def dupe_check():
             and (CallSign_Entry_Val.get() != "")
             and (GridSquare_Entry_Val.get()[0:6] in QSO_String)
             and (GridSquare_Entry_Val.get() != "")
+            and ("  " + Mode_Combo_Val.get() + "  " in QSO_String)
             and ("  " + Band_Combo_Val.get() + "  " in QSO_String)):
                 QSO_Listbox.selection_clear(0, END)         # Dupe is found; set orange color to QSO Entry window widgets
                 QSO_Entry_Window.configure(bg = "sienna1")    
@@ -240,13 +258,8 @@ def dupe_check():
                 QSO_Listbox.selection_clear(0, END)
     QSO_Entry_Window.update()
 
-def update_exch_tx_entry():
-    Band = Band_Combo_Val.get()
-    if Band in CONTEST_BANDS:
-        Band_Index = CONTEST_BANDS.index(Band)
-        ExchTx_Entry_Val.set(str(Next_Exchanges_For_Bands[Band_Index]).rjust(3, "0"))
-    else:
-        ExchTx_Entry_Val.set("")
+def update_exch_tx_entry(*args, **kwargs):
+    ExchTx_Entry_Val.set(str(Next_Exchanges.get(Band_Combo_Val.get(), Mode_Combo_Val.get())).rjust(3, "0"))
 
 # This function is required because the ComboBox sends an event as parameter, unlike other widgets
 def combobox_dupe_check(event):
@@ -274,6 +287,7 @@ def qso_listbox_dupe_check():
                 QSO_Listbox.see(i)
             elif ((CONTEST_DIST[Contest_Number])
             and (QSO_1[BAND_POS] == QSO_2[BAND_POS])
+            and (QSO_1[MODE_POS] == QSO_2[MODE_POS])
             and (QSO_1[CALLSIGN_POS] == QSO_2[CALLSIGN_POS])
             and (QSO_1[GRIDSQUARE_POS][0:6] == QSO_2[GRIDSQUARE_POS][0:6])):
                 QSO_Listbox.itemconfig(i, {'foreground':'red'})
@@ -448,16 +462,16 @@ def log_file_save():
 def log_file_load():
     global Contest_File_Name
     global QSO_Listbox
-    global Next_Exchanges_For_Bands
+    global Next_Exchanges
     QSO_Listbox.delete (0 , QSO_Listbox.size()-1)  # First clear all old QSOs in the QSO listbox
-    New_Next_Exchanges_For_Bands = [1] * len(CONTEST_BANDS)
+    New_Next_Exchanges = NextExchTxMap()
     try:
         with open(Contest_File_Name, 'r') as f:  # Open text file for reading
             for OneLine in f:
                 QSO_Line_List = OneLine.strip().split(",")
                 Band_Index = CONTEST_BANDS.index(QSO_Line_List[BAND_POS])
                 ExchTx = int(QSO_Line_List[EXCH_TX_POS])
-                New_Next_Exchanges_For_Bands[Band_Index] = max(New_Next_Exchanges_For_Bands[Band_Index], ExchTx + 1)
+                New_Next_Exchanges.put(QSO_Line_List[BAND_POS], QSO_Line_List[MODE_POS], ExchTx)
                 QSO_Listbox.insert(END,QSO_Line_List[DATE_POS].ljust(12, ' ') + QSO_Line_List[TIME_POS].ljust(6, ' ') + QSO_Line_List[BAND_POS].ljust(6, ' ')
                                    + QSO_Line_List[MODE_POS].ljust(4, ' ') + QSO_Line_List[CALLSIGN_POS].ljust(10, ' ') + QSO_Line_List[GRIDSQUARE_POS].ljust(7, ' ')
                                    + QSO_Line_List[EXCH_TX_POS].ljust(5, ' ') + QSO_Line_List[EXCH_RX_POS].ljust(5, ' '))
@@ -467,7 +481,7 @@ def log_file_load():
 
         No_Log_Loaded_Label.pack_forget() # This makes the label disappear
         Update_QSO_List_Banner()
-        Next_Exchanges_For_Bands = New_Next_Exchanges_For_Bands
+        Next_Exchanges = New_Next_Exchanges
         update_exch_tx_entry()
     except IOError:
         No_Log_Loaded_Label.pack(expand=True, fill=None) # This makes the label appear
@@ -523,7 +537,7 @@ def save_qso_button_clicked():
     GridSquare_Entry_Val.set("")
     Band_Index = CONTEST_BANDS.index(Band_Combo_Val.get())
     ExchTx = int(ExchTx_Entry_Val.get())
-    Next_Exchanges_For_Bands[Band_Index] = max(Next_Exchanges_For_Bands[Band_Index], ExchTx + 1)
+    Next_Exchanges.put(Band_Combo_Val.get(), Mode_Combo_Val.get(), ExchTx)
     update_exch_tx_entry()
     ExchRx_Entry_Val.set("")
     Date_Entry.configure(bg=Default_BG_Color, fg="gray44")
@@ -1456,7 +1470,8 @@ Mode_Combo_Label = Label(QSO_Lower_button_frame,text="Mode", bg = Default_BG_Col
 Mode_Combo_Label.grid(row=2, column=2, padx=2)  
 Mode_Combo_Val = StringVar(QSO_Lower_button_frame)      
 Mode_Combo = ttk.Combobox(QSO_Lower_button_frame, width = 6, textvariable=Mode_Combo_Val)
-Mode_Combo['values'] = ('CW','PH','FM','RY','DG')
+Mode_Combo.bind("<<ComboboxSelected>>", update_exch_tx_entry)
+Mode_Combo['values'] = MODES
 Mode_Combo['state'] = 'readonly'
 Mode_Combo.set("PH")
 Mode_Combo.grid(row=3, column=2, padx=2)    
