@@ -1031,6 +1031,73 @@ def cabrillo_file_button_clicked():
     cabrillo_file.close()
     showinfo("Cabrillo File Generation Complete","The Cabrillo file was saved as: \n" + cabrillo_file.name)
 
+def edi_file_button_clicked():
+    calculate_score(Contest_Number)
+    if (Own_Callsign == "") or (Own_Gridsquare == ""):
+        showerror("Error!","EDI file Generation requires that you first configure the contest settings. Please fill out the Settings window first.")
+        return
+
+    filename = Contest_File_Name.split(".")[0] + ".edi"
+    with open(filename,'w') as f:
+        print(f"""[REG1TEST;1]
+TName=CQ Budapest
+TDate=20250303;20250303
+PCall={Own_Callsign}
+PWWLo={Own_Gridsquare}
+PExch=
+PAdr1=
+PAdr2=
+PSect=SINGLE-OP
+PBand=144 MHz
+PClub=
+RName=
+RCall={Own_Callsign}
+RAdr1=
+RAdr2=
+RPoCo=
+RCity=
+RCoun=
+RPhon=
+RHBBS=nil
+MOpe1=
+MOpe2=
+STXEq=
+SPowe=
+SRXEq=
+SAnte=
+SAntH=25;152
+CQSOs={QSO_Listbox.size()};1
+CQSOP=0
+CWWLs=0;0;1
+CWWLB=0
+CExcs=0;0;1
+CExcB=0
+CDXCs=0;0;1
+CDXCB=0
+CToSc=
+CODXC=
+[Remarks]
+No remarks
+[QSORecords;{QSO_Listbox.size()}]""", file=f)
+
+        for i in range(0,QSO_Listbox.size()):
+            QSO_Line = QSO_Listbox.get(i).split(" ")
+            while "" in QSO_Line: QSO_Line.remove("") # Removes empty strings from list
+            date = QSO_Line[DATE_POS]  # 2025-12-23
+            f.write(";".join([
+                date[2:4] + date[5:7] + date[8:10],
+                QSO_Line[TIME_POS],
+                QSO_Line[CALLSIGN_POS],
+				{"PH":"1","FM":"6"}[QSO_Line[MODE_POS]],
+                "59",
+                QSO_Line[EXCH_TX_POS],
+                "59",
+                QSO_Line[EXCH_RX_POS],
+                "",
+                QSO_Line[GRIDSQUARE_POS],
+            ]) + "\n")
+
+    showinfo("EDI File Generation Complete","The EDI file was saved as: \n" + filename)
 
 # Creates and opens the Settings window, and treats the settings capture
 def settings_button_clicked():
@@ -1380,6 +1447,10 @@ create_hint(Erase_Log_Button,"Deletes ALL QSOs from the QSO list.")
 Cabrillo_Button = Button(button_frame3, text = "Cabrillo File", command = cabrillo_file_button_clicked, fg = "red", font = "Verdana 8", bd = 2)
 Cabrillo_Button.pack(side=LEFT,fill="x", expand=True)
 create_hint(Cabrillo_Button,"Produces a Cabrillo-formatted file (.vhfcab) required to submit your contest results to the ARRL.")
+
+Edi_Button = Button(button_frame3, text = "EDI File", command = edi_file_button_clicked, fg = "red", font = "Verdana 8", bd = 2)
+Edi_Button.pack(side=LEFT,fill="x", expand=True)
+create_hint(Edi_Button,"Produces a EDI-formatted file (.edi) required to submit your contest results.")
 
 # Create the QSO Entry window and populate it with widgets
 
